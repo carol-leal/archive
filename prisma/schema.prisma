@@ -14,18 +14,6 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
-
-    @@index([name])
-}
-
 // Necessary for Next auth
 model Account {
     id                       String  @id @default(cuid())
@@ -62,7 +50,7 @@ model User {
     image         String?
     accounts      Account[]
     sessions      Session[]
-    posts         Post[]
+    lists         List[]
 }
 
 model VerificationToken {
@@ -71,4 +59,27 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+model List {
+    id String @id @default(cuid())
+    name String
+    description String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    createdBy   User   @relation(fields: [createdById], references: [id])
+    createdById String
+}
+
+model Movie {
+    id          String      @id @default(cuid())
+  title       String
+  overview    String?
+  releaseDate DateTime?
+  posterPath  String?
+  genres String[]
+  status      String?
+  tmdbId      Int         @unique
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }

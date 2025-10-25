@@ -1,7 +1,6 @@
 "use client";
 
 import type { NavbarProps } from "@heroui/react";
-
 import React from "react";
 import {
   Navbar,
@@ -11,19 +10,20 @@ import {
   NavbarMenu,
   NavbarMenuItem,
   NavbarMenuToggle,
-  Link,
   Button,
-  Divider,
   Avatar,
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
+  useDisclosure,
 } from "@heroui/react";
 import { cn } from "@heroui/react";
 import Logo from "./logo";
 import { SignOutIcon } from "@phosphor-icons/react";
-
+import { api } from "~/trpc/react";
+import ModalComponent from "./modal";
+import type { ListCreateInput } from "~/types/general";
 interface NavbarComponentProps extends NavbarProps {
   avatar: string;
   signOut: () => void;
@@ -34,8 +34,20 @@ export default function NavbarComponent({
   signOut,
   ...props
 }: NavbarComponentProps) {
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const utils = api.useUtils();
 
+  const createList = api.list.create.useMutation({
+    onSuccess: async () => {
+      await utils.list.getAll.invalidate();
+    },
+  });
+
+  const handleCreate = async (data: ListCreateInput) => {
+    await createList.mutateAsync(data);
+  };
+
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
   return (
     <Navbar
       {...props}
@@ -60,6 +72,14 @@ export default function NavbarComponent({
       {/* Right Content */}
       <NavbarContent className="hidden md:flex" justify="end">
         <NavbarItem className="ml-2 flex! gap-2">
+          <Button
+            className="text-default-500"
+            radius="full"
+            variant="light"
+            onClick={onOpen}
+          >
+            New List
+          </Button>
           <Dropdown>
             <DropdownTrigger>
               <Avatar
@@ -88,6 +108,11 @@ export default function NavbarComponent({
 
       <NavbarMenu className="bg-default-200/50 shadow-medium dark:bg-default-100/50 top-[calc(var(--navbar-height)-1px)] max-h-fit pt-6 pb-6 backdrop-blur-md backdrop-saturate-150">
         <NavbarMenuItem>
+          <Button fullWidth onClick={onOpen} variant="faded">
+            New List
+          </Button>
+        </NavbarMenuItem>
+        <NavbarMenuItem>
           <Button
             fullWidth
             onClick={signOut}
@@ -100,6 +125,12 @@ export default function NavbarComponent({
           </Button>
         </NavbarMenuItem>
       </NavbarMenu>
+      <ModalComponent
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        onCreate={handleCreate}
+        isCreating={createList.isPending}
+      />
     </Navbar>
   );
 }
