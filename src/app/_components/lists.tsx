@@ -4,6 +4,7 @@ import { api } from "~/trpc/react";
 import React from "react";
 import { Button, Card, CardBody, CardFooter, CardHeader } from "@heroui/react";
 import { PopcornIcon } from "@phosphor-icons/react";
+import Link from "next/link";
 
 export default function Lists() {
   const lists = api.list.getAll.useQuery();
@@ -12,6 +13,10 @@ export default function Lists() {
       <div className="grid w-full max-w-7xl grid-cols-1 gap-6 p-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
         {lists.data?.map((list) => (
           <Card key={list.id} className="w-full max-w-[340px]">
+            <Link
+              href={`/${list.id}/${list.name}`}
+              className="absolute inset-0 z-10"
+            />
             <CardHeader className="justify-between">
               <div className="flex gap-5">
                 <PopcornIcon size={32} />

@@ -5,6 +5,9 @@ import { Geist } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { Providers } from "./providers";
+import NavbarComponent from "./_components/navbar";
+import { auth } from "~/server/auth";
+import { signOutAction } from "./_components/sign-out-action";
 
 export const metadata: Metadata = {
   title: "Watch Lists",
@@ -17,14 +20,31 @@ const geist = Geist({
   variable: "--font-geist-sans",
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const session = await auth();
+
   return (
     <html lang="en" className={`${geist.variable} dark`}>
       <body>
         <TRPCReactProvider>
-          <Providers>{children}</Providers>
+          <Providers>
+            {session && (
+              <main className="flex min-h-screen flex-col items-center bg-gradient-to-b from-[#0D1B2A] via-[#1B263B] to-[#2C1E10] text-white">
+                <NavbarComponent
+                  avatar={session.user.image ?? ""}
+                  signOut={signOutAction}
+                />
+                {children}
+              </main>
+            )}
+            {!session && (
+              <main className="flex flex-col items-center justify-center text-white">
+                {children}
+              </main>
+            )}
+          </Providers>
         </TRPCReactProvider>
       </body>
     </html>
