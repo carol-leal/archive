@@ -2,19 +2,13 @@
 
 import React from "react";
 import { Button } from "@heroui/react";
-import { PopcornIcon } from "@phosphor-icons/react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
+import Logo from "./logo";
 export default function LoginComponent() {
   return (
     <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-      <h1 className="flex items-center gap-2 text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-        Watch{" "}
-        <span className="text-primary">
-          <PopcornIcon />
-        </span>{" "}
-        Lists
-      </h1>
+      <Logo />
       <div className="flex h-full w-full items-center justify-center">
         <div className="rounded-large flex w-full max-w-sm flex-col gap-4">
           <div className="flex flex-col items-center pb-6">
