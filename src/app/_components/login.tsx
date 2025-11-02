@@ -22,10 +22,6 @@ export default function LoginComponent() {
               icon="https://img.clerk.com/static/discord.png?width=160"
               name="Discord"
             />
-            {/*<LoginButton
-              icon="https://img.clerk.com/static/google.png?width=160"
-              name="Google"
-            />*/}
           </div>
         </div>
       </div>

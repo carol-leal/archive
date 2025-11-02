@@ -51,6 +51,27 @@ model User {
     accounts      Account[]
     sessions      Session[]
     lists         List[]
+    listPermissions ListUserPermission[]
+    addedMovies   ListMovie[]
+    sentInvitations ListInvitation[]
+}
+
+enum Permissions {
+    VIEW
+    EDIT
+    OWNER
+}
+
+model ListUserPermission {
+    id        String      @id @default(cuid())
+    userId    String
+    listId    String
+    permission Permissions
+
+    user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    list      List        @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, listId])
 }
 
 model VerificationToken {
@@ -69,6 +90,9 @@ model List {
     updatedAt DateTime @updatedAt
     createdBy   User   @relation(fields: [createdById], references: [id])
     createdById String
+    listUserPermissions ListUserPermission[]
+    listMovies ListMovie[]
+    invitations ListInvitation[]
 }
 
 model Movie {
@@ -82,4 +106,39 @@ model Movie {
   tmdbId      Int         @unique
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  listMovies  ListMovie[]
+}
+
+model ListMovie {
+    id        String   @id @default(cuid())
+    listId    String
+    movieId   String
+    addedBy   String
+    addedAt   DateTime @default(now())
+    watched   Boolean  @default(false)
+    rating    Int?     // 1-10 rating
+    notes     String?
+
+    list      List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+    movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
+    user      User     @relation(fields: [addedBy], references: [id])
+
+    @@unique([listId, movieId])
+}
+
+model ListInvitation {
+    id          String   @id @default(cuid())
+    listId      String
+    invitedUserTag String
+    invitedBy   String
+    permission  Permissions @default(VIEW)
+    token       String   @unique
+    expiresAt   DateTime
+    acceptedAt  DateTime?
+    createdAt   DateTime @default(now())
+
+    list        List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+    inviter     User     @relation(fields: [invitedBy], references: [id])
+
+    @@unique([listId, invitedUserTag])
 }
