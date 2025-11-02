@@ -14,7 +14,7 @@ export default function Lists() {
         {lists.data?.map((list) => (
           <Card key={list.id} className="w-full max-w-[340px]">
             <Link
-              href={`/${list.id}/${list.name}`}
+              href={`list/${list.id}/${list.name}`}
               className="absolute inset-0 z-10"
             />
             <CardHeader className="justify-between">

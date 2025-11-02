@@ -1,5 +1,7 @@
 import { listRouter } from "~/server/api/routers/list";
+import { moviesRouter } from "~/server/api/routers/movies";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
+import { tmdbRouter } from "./routers/tmdb";
 
 /**
  * This is the primary router for your server.
@@ -8,6 +10,8 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  */
 export const appRouter = createTRPCRouter({
   list: listRouter,
+  movies: moviesRouter,
+  tmdb: tmdbRouter,
 });
 
 // export type definition of API
