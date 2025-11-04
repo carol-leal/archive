@@ -204,4 +204,120 @@ export const listRouter = createTRPCRouter({
       await ctx.db.listInvitation.delete({ where: { id: input.invitationId } });
       return { ok: true };
     }),
+  getMyInvitations: protectedProcedure.query(async ({ ctx }) => {
+    const me = await ctx.db.user.findUnique({
+      where: { id: ctx.session.user.id },
+      select: { discordUsername: true },
+    });
+
+    if (!me?.discordUsername) {
+      // If you haven't stored it yet, surface nothing (UI will show empty state)
+      return [];
+    }
+
+    const now = new Date();
+    return ctx.db.listInvitation.findMany({
+      where: {
+        invitedUserTag: me.discordUsername as string, // exact match
+        acceptedAt: null,
+        expiresAt: { gt: now },
+      },
+      select: {
+        id: true,
+        listId: true,
+        invitedUserTag: true,
+        permission: true,
+        createdAt: true,
+        list: { select: { name: true, createdBy: { select: { name: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
+  /** Accept an invite addressed to my discord username */
+  acceptMyInvitation: protectedProcedure
+    .input(z.object({ invitationId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const invite = await ctx.db.listInvitation.findUnique({
+        where: { id: input.invitationId },
+        select: {
+          id: true,
+          listId: true,
+          invitedUserTag: true,
+          permission: true,
+          acceptedAt: true,
+          expiresAt: true,
+        },
+      });
+      if (!invite) throw new TRPCError({ code: "NOT_FOUND" });
+      if (invite.acceptedAt) return { ok: true };
+      if (invite.expiresAt < new Date())
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invite expired" });
+
+      const me = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { id: true, discordUsername: true },
+      });
+      if (
+        !me?.discordUsername ||
+        me.discordUsername !== invite.invitedUserTag
+      ) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      await ctx.db.$transaction([
+        ctx.db.listUserPermission.upsert({
+          where: { userId_listId: { userId: me.id, listId: invite.listId } },
+          update: { permission: invite.permission },
+          create: {
+            userId: me.id,
+            listId: invite.listId,
+            permission: invite.permission,
+          },
+        }),
+        ctx.db.listInvitation.update({
+          where: { id: invite.id },
+          data: { acceptedAt: new Date() },
+        }),
+      ]);
+
+      return { ok: true };
+    }),
+
+  /** Reject = simply delete the pending invite (you can add a declinedAt if you prefer) */
+  rejectMyInvitation: protectedProcedure
+    .input(z.object({ invitationId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const invite = await ctx.db.listInvitation.findUnique({
+        where: { id: input.invitationId },
+        select: {
+          id: true,
+          invitedUserTag: true,
+          acceptedAt: true,
+          expiresAt: true,
+        },
+      });
+      if (!invite) throw new TRPCError({ code: "NOT_FOUND" });
+      if (invite.acceptedAt)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Already accepted",
+        });
+      if (invite.expiresAt < new Date())
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invite expired" });
+
+      const me = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { discordUsername: true },
+      });
+      if (
+        !me?.discordUsername ||
+        me.discordUsername !== invite.invitedUserTag
+      ) {
+        throw new TRPCError({ code: "FORBIDDEN" });
+      }
+
+      await ctx.db.listInvitation.delete({ where: { id: invite.id } });
+      return { ok: true };
+    }),
 });

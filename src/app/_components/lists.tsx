@@ -7,6 +7,7 @@ import { Button, Card, CardBody, CardFooter, CardHeader } from "@heroui/react";
 import { PopcornIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 import ShareModal from "./shareModal";
+import InvitesPanel from "./invitesPanel";
 
 export default function Lists() {
   const lists = api.list.getAll.useQuery();
@@ -15,6 +16,7 @@ export default function Lists() {
 
   return (
     <main className="flex min-h-screen flex-col items-center text-white">
+      <InvitesPanel />
       <div className="grid w-full max-w-7xl grid-cols-1 gap-6 p-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
         {lists.data?.map((list) => {
           const myPerm = list.listUserPermissions?.[0]?.permission ?? "VIEW";
