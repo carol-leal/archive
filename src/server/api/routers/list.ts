@@ -218,7 +218,7 @@ export const listRouter = createTRPCRouter({
     const now = new Date();
     return ctx.db.listInvitation.findMany({
       where: {
-        invitedUserTag: me.discordUsername as string, // exact match
+        invitedUserTag: me.discordUsername,
         acceptedAt: null,
         expiresAt: { gt: now },
       },
