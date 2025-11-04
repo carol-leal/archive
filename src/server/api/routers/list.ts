@@ -1,7 +1,13 @@
+import { TRPCError } from "@trpc/server";
+import { randomBytes } from "crypto";
 import { z } from "zod";
 
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
-
+const ShareInput = z.object({
+  listId: z.string().min(1),
+  invitedUserTag: z.string().min(2),
+  permission: z.enum(["VIEW", "EDIT", "OWNER"]).default("VIEW"),
+});
 export const listRouter = createTRPCRouter({
   create: protectedProcedure
     .input(
@@ -48,4 +54,154 @@ export const listRouter = createTRPCRouter({
       },
     });
   }),
+
+  getMembers: protectedProcedure
+    .input(z.object({ listId: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      // real members
+      const members = await ctx.db.listUserPermission.findMany({
+        where: { listId: input.listId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              discordUsername: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { permission: "desc" }, // OWNER first
+      });
+
+      // pending invites
+      const pending = await ctx.db.listInvitation.findMany({
+        where: {
+          listId: input.listId,
+          acceptedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        select: {
+          id: true,
+          invitedUserTag: true,
+          permission: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // current user's permission to gate actions
+      const me = await ctx.db.listUserPermission.findFirst({
+        where: { listId: input.listId, userId: ctx.session.user.id },
+        select: { permission: true },
+      });
+
+      return { members, pending, myPermission: me?.permission ?? "VIEW" };
+    }),
+
+  shareByDiscordTag: protectedProcedure
+    .input(ShareInput)
+    .mutation(async ({ ctx, input }) => {
+      // must be OWNER to share (adjust if EDIT can share)
+      const canShare = await ctx.db.listUserPermission.findFirst({
+        where: {
+          listId: input.listId,
+          userId: ctx.session.user.id,
+          permission: "OWNER",
+        },
+      });
+      if (!canShare) throw new TRPCError({ code: "FORBIDDEN" });
+
+      const token = randomBytes(24).toString("hex");
+      const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days
+
+      const invitation = await ctx.db.listInvitation.upsert({
+        where: {
+          listId_invitedUserTag: {
+            listId: input.listId,
+            invitedUserTag: input.invitedUserTag,
+          },
+        },
+        update: {
+          permission: input.permission,
+          token,
+          expiresAt,
+          acceptedAt: null,
+        },
+        create: {
+          listId: input.listId,
+          invitedUserTag: input.invitedUserTag,
+          invitedBy: ctx.session.user.id,
+          permission: input.permission,
+          token,
+          expiresAt,
+        },
+      });
+
+      return { token: invitation.token };
+    }),
+
+  removeMember: protectedProcedure
+    .input(z.object({ listId: z.string(), userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // only OWNER can remove others
+      const me = await ctx.db.listUserPermission.findFirst({
+        where: { listId: input.listId, userId: ctx.session.user.id },
+        select: { permission: true },
+      });
+      if (me?.permission !== "OWNER")
+        throw new TRPCError({ code: "FORBIDDEN" });
+
+      // prevent removing the last OWNER (optional safeguard)
+      const owners = await ctx.db.listUserPermission.count({
+        where: { listId: input.listId, permission: "OWNER" },
+      });
+      const target = await ctx.db.listUserPermission.findUnique({
+        where: {
+          userId_listId: { userId: input.userId, listId: input.listId },
+        },
+      });
+      if (owners <= 1 && target?.permission === "OWNER") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot remove the last OWNER.",
+        });
+      }
+
+      await ctx.db.listUserPermission.delete({
+        where: {
+          userId_listId: { userId: input.userId, listId: input.listId },
+        },
+      });
+
+      return { ok: true };
+    }),
+
+  revokeInvite: protectedProcedure
+    .input(z.object({ invitationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // only OWNER can revoke
+      const invite = await ctx.db.listInvitation.findUnique({
+        where: { id: input.invitationId },
+        select: { listId: true, acceptedAt: true },
+      });
+      if (!invite) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const me = await ctx.db.listUserPermission.findFirst({
+        where: { listId: invite.listId, userId: ctx.session.user.id },
+        select: { permission: true },
+      });
+      if (me?.permission !== "OWNER")
+        throw new TRPCError({ code: "FORBIDDEN" });
+
+      if (invite.acceptedAt)
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invite already accepted.",
+        });
+
+      await ctx.db.listInvitation.delete({ where: { id: input.invitationId } });
+      return { ok: true };
+    }),
 });

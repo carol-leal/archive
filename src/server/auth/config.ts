@@ -32,7 +32,25 @@ declare module "next-auth" {
  */
 export const authConfig = {
   providers: [
-    DiscordProvider,
+    DiscordProvider({
+      profile(profile: {
+        id: string;
+        username: string;
+        discriminator: string;
+        email: string | null;
+        avatar?: string | null;
+      }) {
+        return {
+          id: profile.id,
+          name: `${profile.username}#${profile.discriminator}`,
+          email: profile.email,
+          image: profile.avatar
+            ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
+            : undefined,
+          discordUsername: profile.username,
+        };
+      },
+    }),
     /**
      * ...add more providers here.
      *

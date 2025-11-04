@@ -47,13 +47,15 @@ model User {
     name          String?
     email         String?   @unique
     emailVerified DateTime?
+    discordUsername String? @unique
     image         String?
     accounts      Account[]
     sessions      Session[]
     lists         List[]
     listPermissions ListUserPermission[]
-    addedMovies   ListMovie[]
+    addedMovies   ListMovie[] @relation("UserAddedMovies")
     sentInvitations ListInvitation[]
+    ratings       MovieRating[]
 }
 
 enum Permissions {
@@ -63,24 +65,16 @@ enum Permissions {
 }
 
 model ListUserPermission {
-    id        String      @id @default(cuid())
-    userId    String
-    listId    String
-    permission Permissions
+  userId     String
+  listId     String
+  permission Permissions
 
-    user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-    list      List        @relation(fields: [listId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, listId])
+  @@id([userId, listId]) 
 }
 
-model VerificationToken {
-    identifier String
-    token      String   @unique
-    expires    DateTime
-
-    @@unique([identifier, token])
-}
 
 model List {
     id String @id @default(cuid())
@@ -113,17 +107,34 @@ model ListMovie {
     id        String   @id @default(cuid())
     listId    String
     movieId   String
-    addedBy   String
+    addedById String
     addedAt   DateTime @default(now())
-    watched   Boolean  @default(false)
-    rating    Int?     // 1-10 rating
+    status   Status @default(PENDING)
+    ratings   MovieRating[] @relation("ListMovieRatings")
     notes     String?
 
+    addedBy User @relation("UserAddedMovies", fields: [addedById], references: [id])
     list      List     @relation(fields: [listId], references: [id], onDelete: Cascade)
     movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
-    user      User     @relation(fields: [addedBy], references: [id])
 
     @@unique([listId, movieId])
+}
+
+enum Status {
+    PENDING
+    WATCHING
+    WATCHED
+}
+
+model MovieRating {
+    id          Int       @id @default(autoincrement())
+  listMovieId String
+  userId      String
+  rating      Float
+  listMovie   ListMovie @relation("ListMovieRatings", fields: [listMovieId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([listMovieId, userId])
 }
 
 model ListInvitation {
