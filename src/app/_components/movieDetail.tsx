@@ -21,6 +21,12 @@ import type { Movie } from "~/types/general";
 export type ListStatus = "PENDING" | "WATCHING" | "WATCHED";
 type GenreMap = Record<number, string>;
 
+interface UserInfo {
+  id: string;
+  name: string | null;
+  image: string | null;
+}
+
 interface MovieDetailsModalProps {
   movie: Movie | null;
   isOpen: boolean;
@@ -35,6 +41,9 @@ interface MovieDetailsModalProps {
 
   /** Single callback to handle list status changes */
   onChangeStatus?: (status: ListStatus, movie: Movie) => void;
+
+  /** Optional: Who added this movie to the list */
+  addedBy?: UserInfo | null;
 }
 
 // Helper: get year from TMDB release_date (YYYY-MM-DD or YYYY)
@@ -85,6 +94,7 @@ export function MovieDetailsModal({
   isLoading = false,
   addedStatus = null,
   onChangeStatus,
+  addedBy,
 }: MovieDetailsModalProps) {
   if (!movie) return null;
 
@@ -99,24 +109,9 @@ export function MovieDetailsModal({
     movie.genre_ids?.map((id) => genreMap[id] ?? "Unknown") ?? [];
 
   const handleStatusClick = (status: ListStatus) => {
-    console.log(
-      "Button clicked:",
-      status,
-      "isLoading:",
-      isLoading,
-      "onChangeStatus:",
-      !!onChangeStatus,
-    );
-    if (isLoading) {
-      console.log("Skipping - already loading");
-      return;
+    if (!isLoading && onChangeStatus) {
+      onChangeStatus(status, movie);
     }
-    if (!onChangeStatus) {
-      console.error("onChangeStatus callback is not defined!");
-      return;
-    }
-    console.log("Calling onChangeStatus with:", status, movie.title);
-    onChangeStatus(status, movie);
   };
 
   const statusLabel =
@@ -210,7 +205,7 @@ export function MovieDetailsModal({
                 />
               </div>
 
-              {/* Success overlay (like your old card) */}
+              {/* Success overlay */}
               {statusLabel && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-black/70 backdrop-blur-sm">
                   <div className="flex flex-col items-center gap-2">
@@ -227,25 +222,41 @@ export function MovieDetailsModal({
 
             {/* Text column */}
             <div className="flex flex-1 flex-col gap-4">
+              {/* Added by info */}
+              {addedBy && (
+                <div className="flex items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900/50 p-3">
+                  {addedBy.image && (
+                    <Image
+                      src={addedBy.image}
+                      alt={addedBy.name ?? "User"}
+                      className="h-8 w-8 rounded-full"
+                      removeWrapper
+                    />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-neutral-400">
+                      Added by
+                    </span>
+                    <span className="text-sm font-medium">{addedBy.name}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Genres */}
               <div className="flex flex-wrap gap-2">
-                {genres.length > 0 ? (
-                  genres.slice(0, 6).map((g) => (
-                    <Chip
-                      key={g}
-                      size="sm"
-                      variant="flat"
-                      radius="full"
-                      className="border border-neutral-700 bg-neutral-900 text-xs text-neutral-100"
-                    >
-                      {g}
-                    </Chip>
-                  ))
-                ) : (
-                  <span className="text-xs text-neutral-500">
-                    No genres available
-                  </span>
-                )}
+                {genres.length > 0
+                  ? genres.slice(0, 6).map((g) => (
+                      <Chip
+                        key={g}
+                        size="sm"
+                        variant="flat"
+                        radius="full"
+                        className="border border-neutral-700 bg-neutral-900 text-xs text-neutral-100"
+                      >
+                        {g}
+                      </Chip>
+                    ))
+                  : null}
               </div>
 
               {/* Overview (scroll if long) */}

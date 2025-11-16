@@ -1,14 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Card,
-  CardHeader,
-  CardBody,
-  Button,
-  Chip,
-  Spacer,
-} from "@heroui/react";
+import { Card, CardHeader, CardBody, Button, Chip } from "@heroui/react";
 import { api } from "~/trpc/react";
 import { Check, XCircle } from "@phosphor-icons/react";
 

@@ -11,6 +11,7 @@ import InvitesPanel from "./invitesPanel";
 
 export default function Lists() {
   const lists = api.list.getAll.useQuery();
+  const totalMovies = api.list.getTotalMovies.useQuery();
 
   const [openFor, setOpenFor] = React.useState<string | null>(null);
 
@@ -24,64 +25,68 @@ export default function Lists() {
           const open = openFor === list.id;
 
           return (
-            <Card key={list.id} className="relative w-full max-w-[340px]">
-              <Link
-                href={`list/${list.id}/${list.name}`}
-                className="absolute inset-0 z-10"
-              />
-              <CardHeader className="justify-between">
-                <div className="flex gap-5">
-                  <PopcornIcon size={32} />
-                  <div className="flex flex-col items-start justify-center gap-1">
-                    <h4 className="text-small text-default-600 leading-none font-semibold">
-                      {list.name}
-                    </h4>
+            <Link
+              href={`list/${list.id}/${list.name}`}
+              key={list.id}
+              className="relative w-full max-w-[340px]"
+            >
+              <Card key={list.id} className="relative w-full max-w-[340px]">
+                <CardHeader className="justify-between">
+                  <div className="flex gap-5">
+                    <PopcornIcon size={32} />
+                    <div className="flex flex-col items-start justify-center gap-1">
+                      <h4 className="text-small text-default-600 leading-none font-semibold">
+                        {list.name}
+                      </h4>
+                    </div>
                   </div>
-                </div>
-                <Button
-                  className="text-foreground border-default-200 z-20 bg-transparent"
-                  color="primary"
-                  radius="full"
-                  size="sm"
-                  variant="bordered"
-                  onClick={(e) => {
-                    e.preventDefault(); // prevent <Link> overlay from triggering
-                    setOpenFor(list.id);
-                  }}
-                >
-                  Share
-                </Button>
-                <ShareModal
-                  listId={list.id}
-                  listName={list.name}
-                  isOwner={isOwner}
-                  open={open}
-                  onOpenChange={(v) => !v && setOpenFor(null)}
-                />
-              </CardHeader>
-              <CardBody className="text-small text-default-400 px-3 py-0">
-                <p>{list.description}</p>
-                <span className="pt-2">Created by {list.createdBy.name}</span>
-              </CardBody>
-              <CardFooter className="gap-3">
-                <div className="flex gap-1">
-                  <p className="text-default-400 text-small font-semibold">4</p>
-                  <p className="text-default-400 text-small">Total Movies</p>
-                </div>
-                <div className="flex gap-1">
-                  <p className="text-default-400 text-small font-semibold">
-                    40
-                  </p>
-                  <p className="text-default-400 text-small">Watched</p>
-                </div>
-                <div className="flex gap-1">
-                  <p className="text-default-400 text-small font-semibold">
-                    97.1K
-                  </p>
-                  <p className="text-default-400 text-small">Pending</p>
-                </div>
-              </CardFooter>
-            </Card>
+                  <Button
+                    className="text-foreground border-default-200 z-20 bg-transparent"
+                    color="primary"
+                    radius="full"
+                    size="sm"
+                    variant="bordered"
+                    onClick={(e) => {
+                      e.preventDefault(); // prevent <Link> overlay from triggering
+                      setOpenFor(list.id);
+                    }}
+                  >
+                    Share
+                  </Button>
+                  <ShareModal
+                    listId={list.id}
+                    listName={list.name}
+                    isOwner={isOwner}
+                    open={open}
+                    onOpenChange={(v) => !v && setOpenFor(null)}
+                  />
+                </CardHeader>
+                <CardBody className="text-small text-default-400 px-3 py-0">
+                  <p>{list.description}</p>
+                  <span className="pt-2">Created by {list.createdBy.name}</span>
+                </CardBody>
+                <CardFooter className="gap-3">
+                  <div className="flex gap-1">
+                    <p className="text-default-400 text-small font-semibold">
+                      {totalMovies.data?.total ?? 0}
+                    </p>
+                    <p className="text-default-400 text-small">Total Movies</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <p className="text-default-400 text-small font-semibold">
+                      {totalMovies.data?.watched ?? 0}
+                    </p>
+                    <p className="text-default-400 text-small">Watched</p>
+                  </div>
+                  <div className="flex gap-1">
+                    <p className="text-default-400 text-small font-semibold">
+                      {totalMovies.data?.pending ?? 0}
+                    </p>
+                    <p className="text-default-400 text-small">Pending</p>
+                  </div>
+                </CardFooter>
+              </Card>
+            </Link>
           );
         })}
       </div>

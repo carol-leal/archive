@@ -36,6 +36,47 @@ export const listRouter = createTRPCRouter({
       return list;
     }),
 
+  getTotalMovies: protectedProcedure.query(async ({ ctx }) => {
+    const lists = await ctx.db.list.findMany({
+      where: {
+        listUserPermissions: {
+          some: {
+            userId: ctx.session.user.id,
+          },
+        },
+      },
+      include: {
+        listMovies: {
+          select: {
+            status: true,
+          },
+        },
+      },
+    });
+
+    let total = 0;
+    let watched = 0;
+    let pending = 0;
+
+    lists.forEach((list) => {
+      list.listMovies.forEach((movie) => {
+        total++;
+        if (movie.status === "WATCHED") {
+          watched++;
+        } else if (movie.status === "PENDING") {
+          pending++;
+        }
+      });
+    });
+
+    return {
+      total,
+      watched,
+      pending,
+      watching: total - watched - pending,
+    };
+  }),
+
   getAll: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.list.findMany({
       where: {

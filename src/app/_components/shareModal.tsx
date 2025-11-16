@@ -96,8 +96,8 @@ export default function ShareModal({
               <div className="flex flex-col gap-3">
                 <div className="flex items-end gap-3">
                   <Input
-                    label="Discord username or tag"
-                    placeholder="e.g. rafael or rafael#1234"
+                    label="Discord username"
+                    placeholder="e.g. roy#1234"
                     value={invitedUserTag}
                     onChange={(e) => setInvitedUserTag(e.target.value)}
                     isDisabled={!isOwner}

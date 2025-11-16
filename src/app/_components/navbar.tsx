@@ -24,6 +24,7 @@ import { SignOutIcon } from "@phosphor-icons/react";
 import { api } from "~/trpc/react";
 import ModalComponent from "./modal";
 import type { ListCreateInput } from "~/types/general";
+import Link from "next/link";
 interface NavbarComponentProps extends NavbarProps {
   avatar: string;
   signOut: () => void;
@@ -64,9 +65,9 @@ export default function NavbarComponent({
     >
       {/* Left Content */}
       <NavbarBrand>
-        <div className="rounded-full text-white">
+        <Link href="/" className="rounded-full text-white">
           <Logo size="medium" />
-        </div>
+        </Link>
       </NavbarBrand>
 
       {/* Right Content */}
