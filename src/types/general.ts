@@ -1,5 +1,6 @@
 import type { inferRouterInputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
+import type { inferRouterOutputs } from "@trpc/server";
 
 type RouterInputs = inferRouterInputs<AppRouter>;
 export type ListCreateInput = RouterInputs["list"]["create"];
@@ -27,3 +28,5 @@ export type SearchGenreResponse = {
     name: string;
   }[];
 };
+type RouterOutput = inferRouterOutputs<AppRouter>;
+export type MovieWithExtras = RouterOutput["movies"]["getAll"][number];

@@ -15,26 +15,37 @@ import {
   Kbd,
 } from "@heroui/react";
 import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
-import { api } from "~/trpc/react";
 
-type Result = {
-  id: number;
-  title: string;
-  year: string;
-  posterUrl: string | null;
-  description?: string | null;
+import { api } from "~/trpc/react";
+import type { Movie } from "~/types/general";
+import { MovieDetailsModal } from "./movieDetail";
+import type { ListStatus } from "./movieDetail";
+
+type SearchOverlayProps = {
+  listId: string;
 };
 
-export default function SearchOverlay() {
+function getYear(dateStr?: string | null): string {
+  if (!dateStr) return "";
+  return dateStr.slice(0, 4);
+}
+
+export default function SearchOverlay({ listId }: SearchOverlayProps) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [items, setItems] = useState<Result[]>([]);
+  const [items, setItems] = useState<Movie[]>([]);
   const [totalPages, setTotalPages] = useState(1);
+
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [addedStatus, setAddedStatus] = useState<ListStatus | null>(null);
 
   // debounce
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const utils = api.useUtils();
 
   const { data, isFetching, refetch, isLoading } =
     api.tmdb.searchMovies.useQuery(
@@ -45,6 +56,8 @@ export default function SearchOverlay() {
         refetchOnWindowFocus: false,
       },
     );
+
+  const genreMap = data?.genreMap ?? {};
 
   // accumulate pages
   useEffect(() => {
@@ -70,13 +83,15 @@ export default function SearchOverlay() {
   // focus input when opening; reset state when closing
   useEffect(() => {
     if (open) {
-      // small delay to ensure modal is mounted
       setTimeout(() => inputRef.current?.focus(), 50);
     } else {
       setQ("");
       setPage(1);
       setItems([]);
       setTotalPages(1);
+      setSelectedMovie(null);
+      setDetailsOpen(false);
+      setAddedStatus(null);
     }
   }, [open]);
 
@@ -93,6 +108,62 @@ export default function SearchOverlay() {
     if (page < totalPages && !isFetching) setPage((p) => p + 1);
   };
 
+  const openDetails = (movie: Movie) => {
+    console.log("Opening details for movie:", movie.title);
+    setSelectedMovie(movie);
+    setDetailsOpen(true);
+    setAddedStatus(null);
+  };
+
+  // ---- addToList mutation ----
+  const addToList = api.movies.addToList.useMutation({
+    onSuccess: async (_data, variables) => {
+      console.log("Successfully added movie with status:", variables.status);
+      setAddedStatus(variables.status as ListStatus);
+      // invalidate list so it reflects new movie
+      await utils.movies.getAll.invalidate({ listId: variables.listId });
+
+      setTimeout(() => {
+        setAddedStatus(null);
+      }, 2000);
+    },
+    onError: (error) => {
+      console.error("Error adding movie:", error);
+      setAddedStatus(null);
+    },
+  });
+
+  const handleChangeStatus = (status: ListStatus, movie: Movie) => {
+    console.log("handleChangeStatus called:", {
+      status,
+      movieTitle: movie.title,
+      listId,
+    });
+
+    if (!listId) {
+      console.error("No listId provided!");
+      return;
+    }
+
+    const genres =
+      movie.genre_ids?.map((id) => genreMap[id] ?? "Unknown") ?? [];
+
+    const mutationInput = {
+      listId,
+      movieId: movie.id.toString(),
+      title: movie.title,
+      tmdbId: movie.id,
+      genres,
+      posterPath: movie.poster_path ?? undefined,
+      releaseDate: movie.release_date ?? undefined,
+      overview: movie.overview ?? undefined,
+      status,
+    };
+
+    console.log("Calling addToList.mutate with:", mutationInput);
+    addToList.mutate(mutationInput);
+  };
+
   return (
     <>
       <Button
@@ -101,6 +172,7 @@ export default function SearchOverlay() {
         onPress={() => setOpen(true)}
         isIconOnly
         variant="solid"
+        color="primary"
       >
         <MagnifyingGlassIcon className="h-5 w-5" />
       </Button>
@@ -170,7 +242,8 @@ export default function SearchOverlay() {
             {/* Empty state */}
             {q.trim().length === 0 && (
               <div className="grid min-h-[50vh] place-items-center text-neutral-400">
-                Try “Dune”, “Inception”, “The Lord of the Rings”…
+                Try &quot;Dune&quot;, &quot;Inception&quot;, &quot;The Lord of
+                the Rings&quot;…
               </div>
             )}
 
@@ -181,7 +254,9 @@ export default function SearchOverlay() {
                   {items.map((m) => (
                     <Card
                       key={m.id}
-                      className="group overflow-hidden border-0 bg-neutral-900"
+                      isPressable
+                      onPress={() => openDetails(m)}
+                      className="group relative cursor-pointer overflow-hidden border-0 bg-neutral-900"
                       radius="md"
                       shadow="sm"
                     >
@@ -189,7 +264,7 @@ export default function SearchOverlay() {
                         <Image
                           alt={m.title}
                           src={
-                            m.posterUrl ??
+                            m.poster_path ??
                             "https://placehold.co/500x750?text=No+Poster"
                           }
                           className="aspect-[2/3] w-full object-cover transition-transform group-hover:scale-[1.03]"
@@ -197,11 +272,13 @@ export default function SearchOverlay() {
                         />
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                       </div>
-                      <CardBody className="absolute inset-x-0 bottom-0 hidden gap-1 p-3 group-hover:flex">
+                      <CardBody className="absolute inset-x-0 bottom-0 hidden gap-1 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 group-hover:flex">
                         <div className="line-clamp-2 text-sm font-medium">
                           {m.title}
                         </div>
-                        <div className="text-xs text-neutral-400">{m.year}</div>
+                        <div className="text-xs text-neutral-400">
+                          {getYear(m.release_date)}
+                        </div>
                       </CardBody>
                     </Card>
                   ))}
@@ -226,12 +303,23 @@ export default function SearchOverlay() {
             {/* No results */}
             {q.trim().length > 0 && !isFetching && items.length === 0 && (
               <div className="grid min-h-[40vh] place-items-center text-neutral-400">
-                No results for “{q}”.
+                No results for &quot;{q}&quot;.
               </div>
             )}
           </ModalBody>
         </ModalContent>
       </Modal>
+
+      {/* Movie details modal */}
+      <MovieDetailsModal
+        movie={selectedMovie}
+        isOpen={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        genreMap={genreMap}
+        isLoading={addToList.isPending}
+        addedStatus={addedStatus}
+        onChangeStatus={handleChangeStatus}
+      />
     </>
   );
 }

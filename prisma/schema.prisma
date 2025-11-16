@@ -1,102 +1,86 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-    // Further reading:
-    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// Necessary for Next auth
 model Account {
-    id                       String  @id @default(cuid())
-    userId                   String
-    type                     String
-    provider                 String
-    providerAccountId        String
-    refresh_token            String? // @db.Text
-    access_token             String? // @db.Text
-    expires_at               Int?
-    token_type               String?
-    scope                    String?
-    id_token                 String? // @db.Text
-    session_state            String?
-    user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    refresh_token_expires_in Int?
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  refresh_token_expires_in Int?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([provider, providerAccountId])
+  @@unique([provider, providerAccountId])
 }
 
 model Session {
-    id           String   @id @default(cuid())
-    sessionToken String   @unique
-    userId       String
-    expires      DateTime
-    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
-    id            String    @id @default(cuid())
-    name          String?
-    email         String?   @unique
-    emailVerified DateTime?
-    discordUsername String @unique
-    image         String?
-    accounts      Account[]
-    sessions      Session[]
-    lists         List[]
-    listPermissions ListUserPermission[]
-    addedMovies   ListMovie[] @relation("UserAddedMovies")
-    sentInvitations ListInvitation[]
-    ratings       MovieRating[]
-}
-
-enum Permissions {
-    VIEW
-    EDIT
-    OWNER
+  id              String               @id @default(cuid())
+  name            String?
+  email           String?              @unique
+  emailVerified   DateTime?
+  discordUsername String               @unique
+  image           String?
+  accounts        Account[]
+  lists           List[]
+  sentInvitations ListInvitation[]
+  addedMovies     ListMovie[]          @relation("UserAddedMovies")
+  listPermissions ListUserPermission[]
+  sessions        Session[]
 }
 
 model ListUserPermission {
   userId     String
   listId     String
   permission Permissions
+  list       List        @relation(fields: [listId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
-
-  @@id([userId, listId]) 
+  @@id([userId, listId])
 }
 
-
 model List {
-    id String @id @default(cuid())
-    name String
-    description String?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
-    listUserPermissions ListUserPermission[]
-    listMovies ListMovie[]
-    invitations ListInvitation[]
+  id                  String               @id @default(cuid())
+  name                String
+  description         String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  createdById         String
+  createdBy           User                 @relation(fields: [createdById], references: [id])
+  invitations         ListInvitation[]
+  listMovies          ListMovie[]
+  listUserPermissions ListUserPermission[]
 }
 
 model Movie {
-    id          String      @id @default(cuid())
+  id          String      @id @default(cuid())
   title       String
   overview    String?
   releaseDate DateTime?
   posterPath  String?
-  genres String[]
+  genres      String[]
   status      String?
+  rating      Int?
   tmdbId      Int         @unique
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -104,52 +88,45 @@ model Movie {
 }
 
 model ListMovie {
-    id        String   @id @default(cuid())
-    listId    String
-    movieId   String
-    addedById String
-    addedAt   DateTime @default(now())
-    status   Status @default(PENDING)
-    ratings   MovieRating[] @relation("ListMovieRatings")
-    notes     String?
+  id        String   @id @default(cuid())
+  listId    String
+  movieId   String
+  addedById String
+  addedAt   DateTime @default(now())
+  status    Status   @default(PENDING)
+  notes     String?
+  rating    Int?
+  addedBy   User     @relation("UserAddedMovies", fields: [addedById], references: [id])
+  list      List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
 
-    addedBy User @relation("UserAddedMovies", fields: [addedById], references: [id])
-    list      List     @relation(fields: [listId], references: [id], onDelete: Cascade)
-    movie     Movie    @relation(fields: [movieId], references: [id], onDelete: Cascade)
-
-    @@unique([listId, movieId])
-}
-
-enum Status {
-    PENDING
-    WATCHING
-    WATCHED
-}
-
-model MovieRating {
-    id          Int       @id @default(autoincrement())
-  listMovieId String
-  userId      String
-  rating      Float
-  listMovie   ListMovie @relation("ListMovieRatings", fields: [listMovieId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([listMovieId, userId])
+  @@unique([listId, movieId])
 }
 
 model ListInvitation {
-    id          String   @id @default(cuid())
-    listId      String
-    invitedUserTag String
-    invitedBy   String
-    permission  Permissions @default(VIEW)
-    token       String   @unique
-    expiresAt   DateTime
-    acceptedAt  DateTime?
-    createdAt   DateTime @default(now())
+  id             String      @id @default(cuid())
+  listId         String
+  invitedUserTag String
+  invitedBy      String
+  permission     Permissions @default(VIEW)
+  token          String      @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  inviter        User        @relation(fields: [invitedBy], references: [id])
+  list           List        @relation(fields: [listId], references: [id], onDelete: Cascade)
 
-    list        List     @relation(fields: [listId], references: [id], onDelete: Cascade)
-    inviter     User     @relation(fields: [invitedBy], references: [id])
+  @@unique([listId, invitedUserTag])
+}
 
-    @@unique([listId, invitedUserTag])
+enum Permissions {
+  VIEW
+  EDIT
+  OWNER
+}
+
+enum Status {
+  PENDING
+  WATCHING
+  WATCHED
 }
