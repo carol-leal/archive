@@ -78,7 +78,7 @@ export const listRouter = createTRPCRouter({
   }),
 
   getAll: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.list.findMany({
+    const lists = await ctx.db.list.findMany({
       where: {
         listUserPermissions: {
           some: {
@@ -92,7 +92,37 @@ export const listRouter = createTRPCRouter({
           where: { userId: ctx.session.user.id },
           select: { permission: true },
         },
+        listMovies: {
+          select: {
+            status: true,
+          },
+        },
       },
+    });
+
+    return lists.map((list) => {
+      let total = 0;
+      let watched = 0;
+      let pending = 0;
+
+      list.listMovies.forEach((movie) => {
+        total++;
+        if (movie.status === "WATCHED") {
+          watched++;
+        } else if (movie.status === "PENDING") {
+          pending++;
+        }
+      });
+
+      return {
+        ...list,
+        movieStats: {
+          total,
+          watched,
+          pending,
+          watching: total - watched - pending,
+        },
+      };
     });
   }),
 

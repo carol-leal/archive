@@ -11,7 +11,6 @@ import InvitesPanel from "./invitesPanel";
 
 export default function Lists() {
   const lists = api.list.getAll.useQuery();
-  const totalMovies = api.list.getTotalMovies.useQuery();
 
   const [openFor, setOpenFor] = React.useState<string | null>(null);
 
@@ -68,19 +67,19 @@ export default function Lists() {
                 <CardFooter className="gap-3">
                   <div className="flex gap-1">
                     <p className="text-default-400 text-small font-semibold">
-                      {totalMovies.data?.total ?? 0}
+                      {list.movieStats?.total ?? 0}
                     </p>
                     <p className="text-default-400 text-small">Total Movies</p>
                   </div>
                   <div className="flex gap-1">
                     <p className="text-default-400 text-small font-semibold">
-                      {totalMovies.data?.watched ?? 0}
+                      {list.movieStats?.watched ?? 0}
                     </p>
                     <p className="text-default-400 text-small">Watched</p>
                   </div>
                   <div className="flex gap-1">
                     <p className="text-default-400 text-small font-semibold">
-                      {totalMovies.data?.pending ?? 0}
+                      {list.movieStats?.pending ?? 0}
                     </p>
                     <p className="text-default-400 text-small">Pending</p>
                   </div>
