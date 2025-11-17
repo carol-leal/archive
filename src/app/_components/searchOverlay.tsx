@@ -98,6 +98,13 @@ export default function SearchOverlay({ listId }: SearchOverlayProps) {
   const onChange = (val: string) => {
     setQ(val);
     setPage(1);
+
+    // Clear items immediately when search is cleared
+    if (val.trim().length === 0) {
+      setItems([]);
+      setTotalPages(1);
+    }
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       if (val.trim().length > 0) void refetch();
@@ -158,9 +165,9 @@ export default function SearchOverlay({ listId }: SearchOverlayProps) {
       releaseDate: movie.release_date ?? undefined,
       overview: movie.overview ?? undefined,
       status,
+      rating: movie.vote_average,
     };
 
-    console.log("Calling addToList.mutate with:", mutationInput);
     addToList.mutate(mutationInput);
   };
 

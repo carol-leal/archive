@@ -97,8 +97,6 @@ export function MovieDetailsModal({
   addedBy,
 }: MovieDetailsModalProps) {
   if (!movie) return null;
-
-  const year = getYear(movie.release_date);
   const releaseDateLabel = formatReleaseDate(movie.release_date);
   const posterUrl = resolvePosterUrl(movie.poster_path);
 
@@ -150,11 +148,8 @@ export function MovieDetailsModal({
               </h2>
 
               <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-400 md:text-sm">
-                {year && <span>{year}</span>}
-
                 {releaseDateLabel && (
                   <>
-                    <span className="h-1 w-1 rounded-full bg-neutral-500" />
                     <span>{releaseDateLabel}</span>
                   </>
                 )}
@@ -276,9 +271,9 @@ export function MovieDetailsModal({
                 size="sm"
                 variant="flat"
                 color="warning"
-                isDisabled={isLoading}
+                isDisabled={isLoading || addedStatus === "PENDING"}
                 onPress={() => handleStatusClick("PENDING")}
-                className="min-w-[120px]"
+                className="flex-1 data-[disabled=true]:bg-neutral-800 data-[disabled=true]:text-neutral-500 data-[disabled=true]:opacity-50"
               >
                 <ClockIcon className="h-4 w-4" />
                 <span className="text-xs font-medium">Add to pending</span>
@@ -288,9 +283,9 @@ export function MovieDetailsModal({
                 size="sm"
                 variant="solid"
                 color="primary"
-                isDisabled={isLoading}
+                isDisabled={isLoading || addedStatus === "WATCHING"}
                 onPress={() => handleStatusClick("WATCHING")}
-                className="min-w-[120px]"
+                className="flex-1 data-[disabled=true]:bg-neutral-800 data-[disabled=true]:text-neutral-500 data-[disabled=true]:opacity-50"
               >
                 <PlayIcon className="h-4 w-4" />
                 <span className="text-xs font-medium">Add to watching</span>
@@ -300,9 +295,9 @@ export function MovieDetailsModal({
                 size="sm"
                 variant="flat"
                 color="success"
-                isDisabled={isLoading}
+                isDisabled={isLoading || addedStatus === "WATCHED"}
                 onPress={() => handleStatusClick("WATCHED")}
-                className="min-w-[120px]"
+                className="flex-1 data-[disabled=true]:bg-neutral-800 data-[disabled=true]:text-neutral-500 data-[disabled=true]:opacity-50"
               >
                 <CheckIcon className="h-4 w-4" />
                 <span className="text-xs font-medium">Add to watched</span>

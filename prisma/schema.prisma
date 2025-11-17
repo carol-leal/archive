@@ -80,7 +80,7 @@ model Movie {
   posterPath  String?
   genres      String[]
   status      String?
-  rating      Int?
+  rating      Int
   tmdbId      Int         @unique
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

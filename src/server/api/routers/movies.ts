@@ -25,7 +25,7 @@ export const moviesRouter = createTRPCRouter({
         posterPath: z.string().optional(),
         releaseDate: z.string().optional(),
         overview: z.string().optional(),
-        rating: z.number().min(1).max(10).optional(),
+        rating: z.number().min(1).max(100),
         status: z.enum(["PENDING", "WATCHED", "WATCHING"]),
       }),
     )

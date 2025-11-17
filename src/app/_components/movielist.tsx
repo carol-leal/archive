@@ -1,13 +1,22 @@
 "use client";
 
 import React from "react";
-import { Card, Image, Chip, CardBody, CardFooter, Button } from "@heroui/react";
+import {
+  Card,
+  Image,
+  Chip,
+  CardBody,
+  CardFooter,
+  Button,
+  Input,
+} from "@heroui/react";
 import {
   StarIcon,
   ClockIcon,
   PlayIcon,
   CheckIcon,
   TrashIcon,
+  MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import Logo from "./logo";
 import { api } from "~/trpc/react";
@@ -63,6 +72,8 @@ function getStatusLabel(status: string): string {
 
 // Helper: Convert MovieWithExtras to Movie format for modal
 function convertToMovie(movieWithExtras: MovieWithExtras): Movie {
+  const genreIds = movieWithExtras.movie.genres?.map((_, index) => index) ?? [];
+
   return {
     id: movieWithExtras.movie.tmdbId,
     title: movieWithExtras.movie.title,
@@ -70,8 +81,10 @@ function convertToMovie(movieWithExtras: MovieWithExtras): Movie {
     release_date:
       movieWithExtras.movie.releaseDate?.toISOString().split("T")[0] ?? "",
     poster_path: movieWithExtras.movie.posterPath ?? null,
-    vote_average: 0, // We don't have TMDB vote average stored
-    genre_ids: [], // We'll need to map genre names back to IDs if needed
+    vote_average: movieWithExtras.movie.rating
+      ? movieWithExtras.movie.rating / 10
+      : 0,
+    genre_ids: genreIds,
   };
 }
 
@@ -89,6 +102,11 @@ export default function MovieList({
     React.useState<MovieWithExtras | null>(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [addedStatus, setAddedStatus] = React.useState<ListStatus | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const [selectedGenres, setSelectedGenres] = React.useState<Set<string>>(
+    new Set(),
+  );
+  const [genreFilterExpanded, setGenreFilterExpanded] = React.useState(false);
 
   const utils = api.useUtils();
 
@@ -139,19 +157,70 @@ export default function MovieList({
   );
   const movies = movieData || initialMoviesData;
 
-  // Filter movies based on selected tab
+  // Get all unique genres from movies
+  const allGenres = React.useMemo(() => {
+    const genreSet = new Set<string>();
+    movies.forEach((movie) => {
+      movie.movie.genres?.forEach((genre) => genreSet.add(genre));
+    });
+    return Array.from(genreSet).sort();
+  }, [movies]);
+
+  const toggleGenre = (genre: string) => {
+    setSelectedGenres((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(genre)) {
+        newSet.delete(genre);
+      } else {
+        newSet.add(genre);
+      }
+      return newSet;
+    });
+  };
+
+  // Filter movies based on selected tab, search query, and genres
   const filteredMovies = React.useMemo(() => {
+    let moviesList: MovieWithExtras[] = [];
+
     switch (selectedTab) {
       case "pending":
-        return pendingMovies || [];
+        moviesList = pendingMovies || [];
+        break;
       case "watching":
-        return watchingMovies || [];
+        moviesList = watchingMovies || [];
+        break;
       case "watched":
-        return watchedMovies || [];
+        moviesList = watchedMovies || [];
+        break;
       default:
-        return movies;
+        moviesList = movies;
     }
-  }, [selectedTab, movies, pendingMovies, watchingMovies, watchedMovies]);
+
+    // Apply search filter (title only)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      moviesList = moviesList.filter((movie) =>
+        movie.movie.title.toLowerCase().includes(query),
+      );
+    }
+
+    // Apply genre filter
+    if (selectedGenres.size > 0) {
+      moviesList = moviesList.filter((movie) =>
+        movie.movie.genres?.some((genre) => selectedGenres.has(genre)),
+      );
+    }
+
+    return moviesList;
+  }, [
+    selectedTab,
+    movies,
+    pendingMovies,
+    watchingMovies,
+    watchedMovies,
+    searchQuery,
+    selectedGenres,
+  ]);
 
   const handleStatusChange = (movieId: string, status: MovieStatus) => {
     updateStatus.mutate({ listId, movieId, status });
@@ -185,6 +254,7 @@ export default function MovieList({
       posterPath: movie.poster_path ?? undefined,
       releaseDate: movie.release_date ?? undefined,
       overview: movie.overview ?? undefined,
+      rating: movie.vote_average ?? 0,
       status,
     });
   };
@@ -192,51 +262,118 @@ export default function MovieList({
   return (
     <>
       {movies.length > 0 ? (
-        <div className="m-4 flex w-full flex-col items-center justify-center">
+        <div className="m-2 flex w-full flex-col items-center justify-center gap-3 md:m-4 md:gap-4">
+          {/* Tabs */}
           <Tabs
             aria-label="Options"
             color="primary"
             variant="bordered"
             selectedKey={selectedTab}
             onSelectionChange={(key) => setSelectedTab(key as string)}
+            classNames={{
+              tabList: "gap-1 md:gap-2",
+              tab: "px-2 py-1.5 md:px-4 md:py-2",
+            }}
           >
             <Tab
               key="all"
               title={
-                <div className="flex items-center space-x-2">
-                  <PopcornIcon />
-                  <span>All ({movies?.length})</span>
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <PopcornIcon className="h-4 w-4 md:h-5 md:w-5" />
+                  <span className="text-xs md:text-sm">
+                    All ({movies?.length})
+                  </span>
                 </div>
               }
             />
             <Tab
               key="pending"
               title={
-                <div className="flex items-center space-x-2">
-                  <FilmReelIcon />
-                  <span>Pending ({pendingMovies?.length})</span>
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <FilmReelIcon className="h-4 w-4 md:h-5 md:w-5" />
+                  <span className="text-xs md:text-sm">
+                    Pending ({pendingMovies?.length})
+                  </span>
                 </div>
               }
             />
             <Tab
               key="watching"
               title={
-                <div className="flex items-center space-x-2">
-                  <TicketIcon />
-                  <span>Watching ({watchingMovies?.length})</span>
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <TicketIcon className="h-4 w-4 md:h-5 md:w-5" />
+                  <span className="text-xs md:text-sm">
+                    Watching ({watchingMovies?.length})
+                  </span>
                 </div>
               }
             />
             <Tab
               key="watched"
               title={
-                <div className="flex items-center space-x-2">
-                  <FilmStripIcon />
-                  <span>Watched ({watchedMovies?.length})</span>
+                <div className="flex items-center space-x-1 md:space-x-2">
+                  <FilmStripIcon className="h-4 w-4 md:h-5 md:w-5" />
+                  <span className="text-xs md:text-sm">
+                    Watched ({watchedMovies?.length})
+                  </span>
                 </div>
               }
             />
           </Tabs>
+
+          {/* Search Bar */}
+          <div className="w-full max-w-2xl px-4">
+            <Input
+              isClearable
+              placeholder="Search movies by title..."
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+              startContent={
+                <MagnifyingGlassIcon className="h-4 w-4 text-neutral-400 md:h-5 md:w-5" />
+              }
+              classNames={{
+                input: "text-xs md:text-sm",
+                inputWrapper:
+                  "border border-neutral-800 bg-neutral-950 hover:border-neutral-700",
+              }}
+              size="sm"
+              variant="bordered"
+            />
+          </div>
+
+          {/* Genre Filter */}
+          {allGenres.length > 0 && (
+            <div className="w-full max-w-2xl px-4">
+              <Button
+                size="sm"
+                variant="flat"
+                onPress={() => setGenreFilterExpanded(!genreFilterExpanded)}
+                className="mb-2 w-full border border-neutral-800 bg-neutral-950 hover:border-neutral-700"
+              >
+                <span className="text-xs md:text-sm">
+                  {genreFilterExpanded ? "Hide" : "Show"} Genre Filters
+                  {selectedGenres.size > 0 &&
+                    ` (${selectedGenres.size} selected)`}
+                </span>
+              </Button>
+              {genreFilterExpanded && (
+                <div className="flex flex-wrap gap-2">
+                  {allGenres.map((genre) => (
+                    <Chip
+                      key={genre}
+                      size="sm"
+                      variant={selectedGenres.has(genre) ? "solid" : "bordered"}
+                      color={selectedGenres.has(genre) ? "primary" : "default"}
+                      className="cursor-pointer"
+                      onClick={() => toggleGenre(genre)}
+                    >
+                      {genre}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="m-4 text-center text-lg font-medium text-gray-500">
@@ -471,7 +608,7 @@ export default function MovieList({
                     onPress={(e) => {
                       handleStatusChange(movie.movieId, "PENDING");
                     }}
-                    className="flex-1"
+                    className="flex-1 data-[disabled=true]:bg-neutral-800 data-[disabled=true]:text-neutral-500 data-[disabled=true]:opacity-50"
                   >
                     <ClockIcon className="h-4 w-4" />
                     <span className="text-xs">Pending</span>
@@ -487,7 +624,7 @@ export default function MovieList({
                     onPress={(e) => {
                       handleStatusChange(movie.movieId, "WATCHING");
                     }}
-                    className="flex-1"
+                    className="flex-1 data-[disabled=true]:bg-neutral-800 data-[disabled=true]:text-neutral-500 data-[disabled=true]:opacity-50"
                   >
                     <PlayIcon className="h-4 w-4" />
                     <span className="text-xs">Watching</span>
@@ -503,7 +640,7 @@ export default function MovieList({
                     onPress={(e) => {
                       handleStatusChange(movie.movieId, "WATCHED");
                     }}
-                    className="flex-1"
+                    className="flex-1 data-[disabled=true]:bg-neutral-800 data-[disabled=true]:text-neutral-500 data-[disabled=true]:opacity-50"
                   >
                     <CheckIcon className="h-4 w-4" />
                     <span className="text-xs">Watched</span>
@@ -540,7 +677,15 @@ export default function MovieList({
             setSelectedMovie(null);
             setAddedStatus(null);
           }}
-          genreMap={{}}
+          genreMap={
+            selectedMovie.movie.genres?.reduce(
+              (acc, genreName, index) => {
+                acc[index] = genreName;
+                return acc;
+              },
+              {} as Record<number, string>,
+            ) ?? {}
+          }
           isLoading={addToList.isPending || updateStatus.isPending}
           addedStatus={addedStatus}
           onChangeStatus={handleChangeStatus}
